@@ -1,0 +1,15 @@
+.page-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+.page-shell h1 {
+  margin: 0;
+  font-size: 2.5rem;
+  color: #0f172a;
+  text-align: center;
+}
