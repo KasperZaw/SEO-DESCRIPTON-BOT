@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "crawl:products": "node --experimental-strip-types src/backend/crawler/fetch-products-descriptions.ts",
+    "crawl:products": "node --env-file=../.env --experimental-strip-types src/backend/crawler/fetch-products-descriptions.ts",
     "api": "node --experimental-strip-types src/backend/api/server.ts"
   },
   "dependencies": {

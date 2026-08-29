@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS products (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
 
     shop_id TEXT NOT NULL,
-    wp_product_id INTEGER NOT NULL UNIQUE,
+    wp_product_id INTEGER NOT NULL,
     name TEXT NOT NULL,
     description TEXT,
     short_description TEXT,
@@ -20,5 +20,7 @@ CREATE TABLE IF NOT EXISTS products (
     last_error TEXT,
 
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE (shop_id, wp_product_id)
 );
