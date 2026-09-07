@@ -1,12 +1,14 @@
 import { Buffer } from "node:buffer";
+import { pathToFileURL } from "node:url";
 import db from "../../database/db.ts";
 
 const WPAPI_URL = process.env.WPAPI_URL;
+const SHOP_ID = process.env.SHOP_ID;
 const WC_CONSUMER_KEY = process.env.WC_CONSUMER_KEY;
 const WC_CONSUMER_SECRET = process.env.WC_CONSUMER_SECRET;
 
-if (!WPAPI_URL || !WC_CONSUMER_KEY || !WC_CONSUMER_SECRET) {
-  throw new Error("Brakuje WPAPI_URL lub danych WooCommerce w pliku .env");
+if (!WPAPI_URL || !SHOP_ID || !WC_CONSUMER_KEY || !WC_CONSUMER_SECRET) {
+  throw new Error("Brakuje SHOP_ID, WPAPI_URL lub danych WooCommerce w pliku .env");
 }
 
 type GeneratedProduct = {
@@ -16,14 +18,15 @@ type GeneratedProduct = {
   generated_short_description: string;
 };
 
-const generatedProducts = db.prepare(`
+const productsReadyToPublish = db.prepare(`
     SELECT
     id,
     wp_product_id,
     generated_description,
     generated_short_description
     FROM products
-    WHERE ai_status = 'generated'
+    WHERE shop_id = @shop_id
+    AND ai_status = 'generated'
     AND generated_description IS NOT NULL
     AND generated_short_description IS NOT NULL
     AND publish_status IN ('draft', 'queued', 'failed')
@@ -61,7 +64,7 @@ const auth = Buffer.from(
   `${WC_CONSUMER_KEY}:${WC_CONSUMER_SECRET}`,
 ).toString("base64");
 
-const updateProduct = async (product: GeneratedProduct) => {
+const updateProduct = async (product: GeneratedProduct): Promise<boolean> => {
   markAsPublishing.run(product.id);
 
   try {
@@ -87,6 +90,7 @@ const updateProduct = async (product: GeneratedProduct) => {
 
     markAsPublished.run(product.id);
     console.log(`Opublikowano produkt WooCommerce ID: ${product.wp_product_id}`);
+    return true;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -99,9 +103,27 @@ const updateProduct = async (product: GeneratedProduct) => {
       `Błąd publikacji produktu WooCommerce ID ${product.wp_product_id}:`,
       errorMessage,
     );
+    return false;
   }
 };
 
-for (const product of generatedProducts) {
-  await updateProduct(product);
+export const publishAllDescriptions = async () => {
+  const products = productsReadyToPublish.all({ shop_id: SHOP_ID }) as GeneratedProduct[];
+  let published = 0;
+  let failed = 0;
+
+  for (const product of products) {
+    const success = await updateProduct(product);
+    success ? published++ : failed++;
+  }
+
+  return { processed: products.length, published, failed };
+};
+
+const isRunDirectly = process.argv[1]
+  ? import.meta.url === pathToFileURL(process.argv[1]).href
+  : false;
+
+if (isRunDirectly) {
+  await publishAllDescriptions();
 }

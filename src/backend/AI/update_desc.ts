@@ -3,6 +3,7 @@ import {
   SYSTEM_PROMPT,
 } from "./product-description.prompt.ts";
 import { writeFile } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
 import db from "../../database/db.ts";
 
 type Product = {
@@ -26,7 +27,7 @@ type GeneratedDescription = {
   short_description: string;
 };
 
-const products = db.prepare(`
+const queuedProducts = db.prepare(`
   SELECT
     id,
     wp_product_id,
@@ -59,7 +60,17 @@ const saveGenerationError = db.prepare(`
   WHERE id = @id
 `);
 
-const updateDescription = async (product: Product) => {
+const markAsProcessing = db.prepare(`
+  UPDATE products
+  SET
+    ai_status = 'processing',
+    updated_at = CURRENT_TIMESTAMP
+  WHERE id = ?
+`);
+
+const updateDescription = async (product: Product): Promise<boolean> => {
+  markAsProcessing.run(product.id);
+
   try {
             const response = await fetch("https://api.openai.com/v1/chat/completions", {
               method: "POST",
@@ -127,6 +138,7 @@ const updateDescription = async (product: Product) => {
             });
 
             console.log(`Opis zapisany w SQLite: ${product.name}`);
+            return true;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -136,10 +148,28 @@ const updateDescription = async (product: Product) => {
     });
 
     console.error(`Błąd dla produktu ${product.name}:`, errorMessage);
+    return false;
   }
 };
 
-for (const product of products) {
-  console.log(`Przetwarzanie produktu: ${product.name} (ID: ${product.id})`);
-  await updateDescription(product);
+export const generateAllDescriptions = async () => {
+  const products = queuedProducts.all() as Product[];
+  let generated = 0;
+  let failed = 0;
+
+  for (const product of products) {
+    console.log(`Przetwarzanie produktu: ${product.name} (ID: ${product.id})`);
+    const success = await updateDescription(product);
+    success ? generated++ : failed++;
+  }
+
+  return { processed: products.length, generated, failed };
+};
+
+const isRunDirectly = process.argv[1]
+  ? import.meta.url === pathToFileURL(process.argv[1]).href
+  : false;
+
+if (isRunDirectly) {
+  await generateAllDescriptions();
 }

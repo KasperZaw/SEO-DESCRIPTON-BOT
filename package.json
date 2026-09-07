@@ -11,7 +11,7 @@
     "crawl:products": "node --env-file=../.env --experimental-strip-types src/backend/crawler/fetch-products-descriptions.ts",
     "generate:descriptions": "node --env-file=../.env --experimental-strip-types src/backend/AI/update_desc.ts",
     "publish:descriptions": "node --env-file=../.env --experimental-strip-types src/backend/updateProducts/update-products.ts",
-    "api": "node --experimental-strip-types src/backend/api/server.ts"
+    "api": "node --env-file=../.env --experimental-strip-types src/backend/api/server.ts"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",

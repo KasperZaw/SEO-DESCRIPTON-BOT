@@ -1,4 +1,5 @@
 import { Buffer } from "buffer";
+import { pathToFileURL } from "node:url";
 import db from "../../database/db.ts";
 
 const env = process.env as Record<string, string | undefined>;
@@ -58,7 +59,7 @@ const createAuth = (): string => {
     ).toString("base64");
 }
 
-const fetchProductsDescriptions = async () => {
+export const fetchProductsDescriptions = async () => {
     try {
         const auth = createAuth();
         const response = await fetch(WPAPI_URL, {
@@ -93,4 +94,10 @@ const fetchProductsDescriptions = async () => {
     }
 };
 
-void fetchProductsDescriptions();
+const isRunDirectly = process.argv[1]
+  ? import.meta.url === pathToFileURL(process.argv[1]).href
+  : false;
+
+if (isRunDirectly) {
+  await fetchProductsDescriptions();
+}
